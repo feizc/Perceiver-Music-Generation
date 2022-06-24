@@ -1,4 +1,3 @@
-from cProfile import label
 import os 
 import torch 
 import torch.nn as nn 
@@ -6,30 +5,59 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from torch.optim import Adam 
 import argparse
+from tqdm import tqdm 
 
 from preprocess import decode_midi 
 from dataset import create_epiano_datasets 
 from perceiver_ar_pytorch import PerceiverAR 
 from utils import * 
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
 def train(cur_epoch, model, data_loader, opt, lr_scheduler=None): 
     model.train() 
-    for batch_num, batch in enumerate(data_loader): 
-        opt.zero_grad()
-        x   = batch[0].to(device)
-        tgt = batch[1].to(device) 
-        out = model(x, labels=tgt) 
-        loss = out[0] 
-        acc = out[1]
-        loss.backward()
-        opt.step() 
-        if(lr_scheduler is not None):
-            lr_scheduler.step()
-        print(loss.item())
-        print(acc.item())
-        break 
+    sum_loss = .0 
+    sum_acc = .0 
+    
+    with tqdm(enumerate(data_loader), total=len(data_loader)) as t: 
+        for batch_num, batch in t: 
+            opt.zero_grad()
+            x   = batch[0].to(device)
+            tgt = batch[1].to(device) 
+            out = model(x, labels=tgt) 
+            loss = out[0] 
+            acc = out[1]
+            loss.backward()
+            opt.step() 
+            if(lr_scheduler is not None):
+                lr_scheduler.step()
+            
+
+            sum_loss += loss.item()
+            sum_acc += acc.item()
+            t.set_description('Epoch %i' % cur_epoch)
+            t.set_postfix(loss=sum_loss / (batch_num+1), acc=sum_acc/(batch_num+1))
+            break 
+
+
+def eval(model, data_loader): 
+    model.eval() 
+    sum_loss = .0 
+    sum_acc = .0 
+    with torch.no_grad(): 
+        with tqdm(enumerate(data_loader), total=len(data_loader)) as t: 
+            for batch_num, batch in t: 
+                x = batch[0].to(device) 
+                tgt = batch[1].to(device) 
+                out = model(x, labels=tgt) 
+                loss = out[0].item() 
+                acc = out[1].item() 
+                sum_loss += loss 
+                sum_acc += acc 
+                t.set_description('Evaluation')
+                t.set_postfix(loss=sum_loss / (batch_num+1), acc=sum_acc/(batch_num+1))
+                break 
 
 
 
@@ -87,9 +115,12 @@ def main():
 
     for epoch in range(args.epochs): 
         train(epoch, model, train_loader, opt, lr_scheduler)
+        eval(model, val_loader)
+        torch.save({
+            'state_dict': model.state_dict(),
+            'optimizer': opt.state_dict(),
+        }, os.path.join(args.ckpt_dir, 'latest.pth'))
         break 
-
-
 
 
 
