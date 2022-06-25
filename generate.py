@@ -2,6 +2,7 @@ import torch
 import argparse
 from torch.utils.data import DataLoader  
 import os 
+import numpy as np 
 
 from perceiver_ar_pytorch import PerceiverAR 
 from dataset import create_epiano_datasets 
@@ -12,10 +13,29 @@ from tqdm import tqdm
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
 
+def greedy(condi, model, args): 
+    ys = [] 
+    for i in range(args.max_sequence - args.num_prime): 
+        if i > 0: 
+            predict = torch.tensor(ys).long().unsqueeze(0) 
+            input = torch.cat((condi, predict), dim=-1) 
+        else:
+            input = condi
+        out = model(input)
+        logits = out[0][-1, :].cpu().data.numpy() 
+        next_token = np.argsort(logits)[-1] 
+        ys.append(next_token)
+        if i > 100:
+            break 
+    return ys 
+
+
+
 def main(): 
     parser = argparse.ArgumentParser()
     parser.add_argument("-data_dir", type=str, default="./data", help="Folder of preprocessed and pickled midi files") 
     parser.add_argument("-ckpt_dir", type=str, default="./ckpt", help="Folder to save model weights. Saves one every epoch")
+    parser.add_argument("-output_dir", type=str, default="./result", help="Folder to save the generated music with midi form")
     parser.add_argument("-n_workers", type=int, default=1, help="Number of threads for the dataloader")
     parser.add_argument("-batch_size", type=int, default=1, help="Batch size to use") 
     parser.add_argument("-max_sequence", type=int, default=2048, help="Maximum midi sequence to consider")
@@ -45,8 +65,13 @@ def main():
             for batch_num, batch in t: 
                 x = batch[0].to(device) 
                 tgt = batch[1].to(device) 
-                decode_midi(tgt[0].cpu().numpy(), file_path='test.mid') 
-
+                condi = x[:, :1025]
+                predict = greedy(condi, model, args) 
+                predict = np.array(predict)
+                midi_name = 'sample_' + str(batch_num) + '.mid' 
+                midi_path = os.path.join(args.output_dir, midi_name)
+                decode_midi(predict, file_path=midi_path) 
+                break
 
 
 if __name__ == "__main__":
