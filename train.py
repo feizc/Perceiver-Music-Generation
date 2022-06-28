@@ -32,8 +32,6 @@ def train(cur_epoch, model, data_loader, opt, lr_scheduler=None):
             opt.step() 
             if(lr_scheduler is not None):
                 lr_scheduler.step()
-            
-
             sum_loss += loss.item()
             sum_acc += acc.item()
             t.set_description('Epoch %i' % cur_epoch)
@@ -58,6 +56,7 @@ def eval(model, data_loader):
                 t.set_description('Evaluation')
                 t.set_postfix(loss=sum_loss / (batch_num+1), acc=sum_acc/(batch_num+1))
                 break 
+    return sum_acc/(batch_num+1) 
 
 
 
@@ -109,17 +108,19 @@ def main():
         lr_scheduler = None
 
     ##### Loss #####
-    #loss_func = nn.CrossEntropyLoss(ignore_index=TOKEN_PAD)
+    # loss_func = nn.CrossEntropyLoss(ignore_index=TOKEN_PAD)
     # print(TOKEN_PAD)
     
-
+    best_acc = .0 
     for epoch in range(args.epochs): 
         train(epoch, model, train_loader, opt, lr_scheduler)
-        eval(model, val_loader)
-        torch.save({
-            'state_dict': model.state_dict(),
-            'optimizer': opt.state_dict(),
-        }, os.path.join(args.ckpt_dir, 'latest.pth'))
+        acc = eval(model, val_loader)
+        if acc > best_acc: 
+            best_acc = acc 
+            torch.save({
+                'state_dict': model.state_dict(),
+                'optimizer': opt.state_dict(),
+            }, os.path.join(args.ckpt_dir, 'latest.pth'))
         break 
 
 
