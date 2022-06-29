@@ -1,6 +1,6 @@
 # Perceiver-Music-Generation
 
-Create conditional music with Perceiver-AR model implemented by [lucidrains](https://github.com/lucidrains/perceiver-ar-pytorch). 
+Create pop music with Perceiver-AR model implemented by [lucidrains](https://github.com/lucidrains/perceiver-ar-pytorch). 
 
 ## 1. Requirements
 
