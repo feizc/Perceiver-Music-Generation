@@ -2,7 +2,13 @@
 
 Create conditional pop music with perceiver-ar model implemented by [lucidrains](https://github.com/lucidrains/perceiver-ar-pytorch). 
 
-## Dataset
+## 1 Requirements
+torch == 1.11.0 
+transformers == 4.19.4 
+pyarrow == 8.0.0
+
+
+## 2 Dataset
 
 Download the Magenta MAESTRO v.2.0.0 Piano MIDI Dataset from the [web](https://magenta.tensorflow.org/datasets/maestro), and put the file under the dir: 
 ```
@@ -13,12 +19,12 @@ The music dataset is pre-processed with [midi neural pprocessor](https://github.
 $ python preprocess.py 
 ```
 
-## Train 
+## 3 Train 
 ```base
 $ python train.py 
 ```
 
-## Test 
+## 4 Test 
 We provide the trained ckpt in the google drive. 
 ```base
 $ python generate.py 
