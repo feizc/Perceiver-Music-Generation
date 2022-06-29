@@ -25,12 +25,12 @@ $ python preprocess.py
 ## 3 Train 
 
 ```base
-$ python train.py --data_dir=./data --ckpt_dir=./ckpt 
+$ python train.py --data_dir [data path] --ckpt_dir [ckpt path]
 ```
 
 ## 4 Inference 
 We provide the trained ckpt in the google drive. Download the trained ckpt and put it to the ckpt_dir, then run the command: 
 ```base
-$ python generate.py --data_dir=./data --ckpt_dir=./ckpt --output_dir=./result 
+$ python generate.py --data_dir [data path] --ckpt_dir [ckpt path] --output_dir [output path]
 ```
 
