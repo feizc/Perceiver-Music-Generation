@@ -19,7 +19,7 @@ def greedy_decode(condi, model, args):
     ys = [] 
     for i in range(args.max_sequence): 
         if i > 0: 
-            predict = torch.tensor(ys).long().unsqueeze(0) 
+            predict = torch.tensor(ys).long().unsqueeze(0)
             input = torch.cat((condi, predict), dim=-1) 
         else: 
             input = condi
@@ -27,7 +27,6 @@ def greedy_decode(condi, model, args):
         logits = out[0][-1, :].cpu().data.numpy() 
         next_token = np.argsort(logits)[-1] 
         ys.append(next_token) 
-
     return ys 
 
 
@@ -45,10 +44,17 @@ def sample_sequence(condi, model, args, temperature=0.7, top_k=0, top_p=0.9):
         logits = top_filtering(logits, top_k=top_k, top_p=top_p) 
         probs = F.softmax(logits, dim=-1)
         
-        next_token = torch.multinomial(probs, 1).item()
+        next_token = torch.multinomial(probs, 1).item() 
+        max_iter = 0 
+        while next_token == TOKEN_END or next_token == TOKEN_PAD: 
+            next_token = torch.multinomial(probs, 1).item() 
+            max_iter += 1 
+            if max_iter > 100: 
+                next_token = TOKEN_END - 1 
         ys.append(next_token) 
-        break 
-
+        if len(ys) > 100:
+            break
+        
     return ys 
 
 
