@@ -34,3 +34,6 @@ We provide the trained ckpt in the google drive. Download the trained ckpt and p
 $ python generate.py --data_dir [data path] --ckpt_dir [ckpt path] --output_dir [output path]
 ```
 
+Generated music cases can be found in [google drive](https://drive.google.com/file/d/1Ws4iIHGoD3TehZY2xxNF4kZ7pNt0vOAm/view?usp=sharing). 
+
+
