@@ -29,7 +29,7 @@ $ python train.py --data_dir [data path] --ckpt_dir [ckpt path]
 ```
 
 ## 4. Inference 
-We provide the trained ckpt in the google drive. Download the trained ckpt and put it to the ckpt_dir, then run the command: 
+We provide the trained ckpt in the [google drive](https://drive.google.com/file/d/1E4lftPffII9M5Br37Wi46RCKYPJk8tnv/view?usp=sharing). Download the trained ckpt and put it to the ckpt_dir, then run the command: 
 ```base
 $ python generate.py --data_dir [data path] --ckpt_dir [ckpt path] --output_dir [output path]
 ```
