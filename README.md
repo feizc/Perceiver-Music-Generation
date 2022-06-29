@@ -17,7 +17,7 @@ Download the Magenta MAESTRO v.2.0.0 Piano MIDI Dataset from the [web](https://m
 ```
 ./data
 ```
-The music dataset is pre-processed with [midi neural pprocessor](https://github.com/jason9693/midi-neural-processor/tree/bea0dc612b7f687f964d0f6d54d1dbf117ae1307), do not worry, the processing code is integrated in this repository, and only needs to run:  
+The music dataset is pre-processed with [midi neural pprocessor](https://github.com/jason9693/midi-neural-processor/tree/bea0dc612b7f687f964d0f6d54d1dbf117ae1307), do not worry, the processing code is integrated in this repository, and you only needs to run:  
 ```base
 $ python preprocess.py 
 ```
