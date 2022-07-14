@@ -234,7 +234,8 @@ class PerceiverAR(nn.Module):
         cross_attn_dropout = 0.,
         ff_mult = 4,
         perceive_depth = 1,
-        perceive_max_heads_process = 2 # processes the heads in the perceiver layer in chunks to lower peak memory, in the case the prefix is really long
+        perceive_max_heads_process = 2, # processes the heads in the perceiver layer in chunks to lower peak memory, in the case the prefix is really long
+        return_encoder_hidden_states = False,
     ):
         super().__init__()
         assert max_seq_len > cross_attn_seq_len, 'max_seq_len must be greater than cross_attn_seq_len, the length of the sequence for which to cross attend to "perceiver" style'
@@ -264,6 +265,7 @@ class PerceiverAR(nn.Module):
             ]))
 
         self.to_logits = nn.Linear(dim, num_tokens, bias = False) 
+        self.return_encoder_hidden_states = return_encoder_hidden_states 
     
 
     def compute_accuracy(self, logits, labels): 
@@ -320,10 +322,129 @@ class PerceiverAR(nn.Module):
 
         # take care of cross entropy loss if labels are provided
 
-        if not exists(labels):
-            return logits
+        if not exists(labels): 
+            if self.return_encoder_hidden_states == True: 
+                return (logits, prefix) 
+            else: 
+                return logits 
 
         labels = labels[:, self.cross_attn_seq_len:]
         loss = F.cross_entropy(rearrange(logits, 'b n c -> b c n'), labels, ignore_index = self.token_pad) 
         acc = self.compute_accuracy(logits, labels) 
         return (loss, acc,)
+
+
+
+class CopyPerceiverAR(nn.Module): 
+    """
+    PerceiverAR with copy mechanism 
+    """
+
+    def __init__(
+        self,
+        *,
+        num_tokens,
+        dim,
+        depth,
+        max_seq_len,
+        cross_attn_seq_len,
+    ):
+        super().__init__() 
+        self.model = PerceiverAR(
+            num_tokens = num_tokens, 
+            dim = dim, 
+            depth = depth, 
+            max_seq_len = max_seq_len, 
+            cross_attn_seq_len = cross_attn_seq_len, 
+            return_encoder_hidden_states = True, 
+        ) 
+
+        self.attn_layer = nn.Linear(dim, 1, bias=True) 
+
+        self.p_gen_context_layer = nn.Linear(dim, 1, bias=True) 
+        self.p_gen_decoder_output_layer = nn.Linear(dim, 1, bias=True) 
+        self.p_gen_decoder_prev_output_layer = nn.Linear(dim, 1, bias=True) 
+
+    def _compute_output_dist(
+        self, 
+        prefix_outputs,
+        logits,
+        prefix_ids,
+    ):
+        """
+        Compute the output distribution with the copy mechanism 
+        Args:
+            prefix_outputs: (bsz, prefix_len, d_model) 
+            logits: (bsz, seq_len, d_model) 
+            prefix_ids: (bsz, prefix_len)
+        """ 
+
+        prefix_len = prefix_outputs.shape(1)
+        bsz = prefix_outputs.shape(0) 
+        seq_len = logits.shape(1) 
+        d_model = prefix_outputs.shape(2)
+
+        proj_prefix = prefix_outputs
+        proj_seq = logits 
+
+        sum_projs = torch.nn.GELU()(
+            (proj_seq[:, :, None, :] + proj_prefix[:, None, :, :]).view(
+                (bsz, seq_len, prefix_len, d_model)
+            )
+        )
+
+        e = self.attn_layer(sum_projs).squeeze(-1) 
+        attns = self._compute_cross_attn_prob(e) 
+        context_vectors = torch.einsum("ijk, ikf -> ijf", attns, prefix_outputs) 
+
+        # Compute p_vocab 
+        p_vocab_context = self.model.to_logits(context_vectors) 
+        p_vocab_seq = self.model.to_logits(logits) 
+        p_vocab = p_vocab_context + p_vocab_seq 
+        p_vocab = nn.Softmax(dim=-1)(p_vocab) 
+
+        # Compute p_gen 
+        p_gen_context = self.p_gen_context_layer(context_vectors) 
+        p_gen_seq = self.p_gen_decoder_output_layer(logits) 
+        p_gen_prev_seq = self.p_gen_decoder_prev_output_layer(self._shift_right_one_pad(logits)) 
+
+        p_gen = nn.Sigmoid()(
+            p_gen_context + p_gen_seq + p_gen_prev_seq
+        ) 
+
+        p_copy = torch.zeros_like(p_vocab)
+        p_copy = p_copy.scatter_add(
+            -1,
+            prefix_ids.repeat_interleave(attns.shape[1], dim=0).view(
+                bsz, seq_len, -1
+            ),
+            attns,
+        )
+
+        output_dist = torch.log((1.0 - p_gen) * p_copy + p_gen * p_vocab) 
+        return output_dist 
+
+
+
+    def _shift_right_one_pad(x): 
+        shifted = x.roll(1) 
+        shifted[0] = 0 
+        return shifted
+
+
+    def _compute_cross_attn_prob(self, e): 
+        return nn.Softmax(dim=-1)(e)
+
+
+    def forward(
+        self,
+        x,
+        prefix_mask = None,
+        labels = None,
+    ):
+        logits, prefix = self.model(x, prefix_mask, labels) 
+        output_dist = self._compute_output_dist(prefix, logits, x[:, self.model.cross_attn_seq_len:])
+        return output_dist 
+
+
+
