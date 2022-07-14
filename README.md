@@ -1,6 +1,9 @@
 # Perceiver-Music-Generation
 
-Create pop music with Perceiver-AR model implemented by [lucidrains](https://github.com/lucidrains/perceiver-ar-pytorch). 
+Create pop music based on Perceiver-AR model implemented by [lucidrains](https://github.com/lucidrains/perceiver-ar-pytorch). 
+Copy mechanism is introduced to enhance the rhythm of music. 
+
+
 
 ## 1. Requirements
 
