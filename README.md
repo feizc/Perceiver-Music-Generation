@@ -25,6 +25,8 @@ The music dataset is pre-processed with [midi neural pprocessor](https://github.
 ```base
 $ python preprocess.py 
 ```
+Of course, other midi music dataset is also supported. 
+
 
 ## 3. Training 
 
