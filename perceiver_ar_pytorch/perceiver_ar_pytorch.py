@@ -324,7 +324,7 @@ class PerceiverAR(nn.Module):
 
         if not exists(labels): 
             if self.return_encoder_hidden_states == True: 
-                return (logits, prefix) 
+                return (x, prefix, logits) 
             else: 
                 return logits 
 
@@ -348,6 +348,13 @@ class CopyPerceiverAR(nn.Module):
         depth,
         max_seq_len,
         cross_attn_seq_len,
+        dim_head = 64, 
+        heads = 8,
+        dropout = 0.,
+        cross_attn_dropout = 0.,
+        ff_mult = 4,
+        perceive_depth = 1,
+        perceive_max_heads_process = 2,
     ):
         super().__init__() 
         self.model = PerceiverAR(
@@ -356,6 +363,13 @@ class CopyPerceiverAR(nn.Module):
             depth = depth, 
             max_seq_len = max_seq_len, 
             cross_attn_seq_len = cross_attn_seq_len, 
+            dim_head = dim_head, 
+            heads = 8,
+            dropout = dropout,
+            cross_attn_dropout = cross_attn_dropout,
+            ff_mult = ff_mult,
+            perceive_depth = perceive_depth,
+            perceive_max_heads_process = perceive_max_heads_process,
             return_encoder_hidden_states = True, 
         ) 
 
@@ -378,15 +392,15 @@ class CopyPerceiverAR(nn.Module):
             logits: (bsz, seq_len, d_model) 
             prefix_ids: (bsz, prefix_len)
         """ 
-
-        prefix_len = prefix_outputs.shape(1)
-        bsz = prefix_outputs.shape(0) 
-        seq_len = logits.shape(1) 
-        d_model = prefix_outputs.shape(2)
+        
+        prefix_len = prefix_outputs.shape[1]
+        bsz = prefix_outputs.shape[0]
+        seq_len = logits.shape[1] 
+        d_model = prefix_outputs.shape[2]
 
         proj_prefix = prefix_outputs
         proj_seq = logits 
-
+    
         sum_projs = torch.nn.GELU()(
             (proj_seq[:, :, None, :] + proj_prefix[:, None, :, :]).view(
                 (bsz, seq_len, prefix_len, d_model)
@@ -426,7 +440,7 @@ class CopyPerceiverAR(nn.Module):
 
 
 
-    def _shift_right_one_pad(x): 
+    def _shift_right_one_pad(self, x): 
         shifted = x.roll(1) 
         shifted[0] = 0 
         return shifted
@@ -442,7 +456,7 @@ class CopyPerceiverAR(nn.Module):
         prefix_mask = None,
         labels = None,
     ):
-        logits, prefix = self.model(x, prefix_mask, labels) 
+        logits, prefix, _ = self.model(x, prefix_mask) 
         output_dist = self._compute_output_dist(prefix, logits, x[:, self.model.cross_attn_seq_len:])
         return output_dist 
 

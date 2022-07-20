@@ -326,6 +326,43 @@ def prep_maestro_midi(maestro_root, output_dir):
 
 
 
+
+# prep_midi
+def prep_general_midi(data_root, output_dir):
+
+    train_dir = os.path.join(output_dir, "train")
+    os.makedirs(train_dir, exist_ok=True)
+    
+    print("Preprocessing...")
+
+    total_count = 0
+    train_count = 0
+    
+    mid_list = os.listdir(data_root)
+
+    for piece in mid_list:
+        mid         = os.path.join(data_root, piece)
+        f_name      = mid.split("/")[-1] + ".pickle"
+        print(mid)
+        
+        o_file = os.path.join(train_dir, f_name)
+        train_count += 1
+
+        prepped = encode_midi(mid)
+
+        o_stream = open(o_file, "wb")
+        pickle.dump(prepped, o_stream)
+        o_stream.close()
+
+        total_count += 1
+        if(total_count % 50 == 0):
+            print(total_count, "/", len(mid_list))
+
+    print("Num Train:", train_count)
+    return True
+
+    
+
 # parse_args
 def parse_args():
     """
@@ -337,8 +374,8 @@ def parse_args():
     """
 
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("-root", type=str, default='./data/maestro', help="Root folder for the Maestro dataset or for custom data.")
+    parser.add_argument("-self_dataset", type=bool, default=True, help="If use the self dataset.")
+    parser.add_argument("-root", type=str, default='./data/hymnal', help="Root folder for the Maestro dataset or for custom data.")
     parser.add_argument("-output_dir", type=str, default="./data", help="Output folder to put the preprocessed midi into.")
     
     return parser.parse_args()
@@ -354,12 +391,16 @@ def main():
     """
 
     args            = parse_args()
-    root    = args.root
-    output_dir      = args.output_dir
+    root            = args.root
+    output_dir      = args.output_dir 
+    self_data_flag  = args.self_dataset
 
     print("Preprocessing midi files and saving to", output_dir)
     
-    prep_maestro_midi(root, output_dir)
+    if self_data_flag == False:
+        prep_maestro_midi(root, output_dir) 
+    else:
+        prep_general_midi(root, output_dir)
     print("Done!")
     print("")
 
